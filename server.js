@@ -1,9 +1,5 @@
-const express = require('express');
 const axios = require('axios');
 const cron = require('node-cron');
-
-const app = express();
-const port = 3000;
 
 // Globale Variablen zum Speichern der Daten
 let coingeckoData = [];
@@ -23,6 +19,7 @@ async function getCoinGeckoData() {
     return response.data;
   } catch (error) {
     console.error('Fehler beim Abrufen von CoinGecko-Daten:', error);
+    return [];
   }
 }
 
@@ -31,8 +28,8 @@ async function getBinanceData(interval) {
   const symbol = 'BTCUSDT';
   const now = Date.now();
   const startTime = interval === 'week' ? now - 7 * 24 * 60 * 60 * 1000 : 0;
-  let endpoint = interval === 'day' 
-    ? `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${symbol}` 
+  let endpoint = interval === 'day'
+    ? `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${symbol}`
     : `https://fapi.binance.com/fapi/v1/fundingRate?symbol=${symbol}&startTime=${startTime}&endTime=${now}`;
 
   try {
@@ -40,31 +37,26 @@ async function getBinanceData(interval) {
     return response.data;
   } catch (error) {
     console.error('Fehler beim Abrufen von Binance-Daten:', error);
+    return [];
   }
 }
 
-// API-Endpunkt zum Abrufen der gespeicherten Daten
-app.get('/api/data', (req, res) => {
-  res.json({
-    coingeckoData,
-    fundingRates
-  });
-});
-
-// Jede Minute CoinGecko-Daten abrufen
+// Cron-Jobs
 cron.schedule('* * * * *', async () => {
   coingeckoData = await getCoinGeckoData() || [];
   console.log('CoinGecko-Daten aktualisiert:', coingeckoData.length ? coingeckoData[0] : 'Keine Daten');
 });
 
-// Jede Stunde Binance-Daten abrufen
 cron.schedule('0 * * * *', async () => {
   fundingRates.day = await getBinanceData('day');
   fundingRates.week = await getBinanceData('week');
   console.log('Binance-Daten aktualisiert');
 });
 
-// Server starten
-app.listen(port, () => {
-  console.log(`Server läuft auf http://localhost:${port}`);
-});
+// Vercel-Handler
+export default function handler(req, res) {
+  res.json({
+    coingeckoData,
+    fundingRates
+  });
+}
