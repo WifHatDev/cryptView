@@ -1,5 +1,9 @@
 const axios = require('axios');
 const cron = require('node-cron');
+const express = require('express');
+const app = express();
+
+const port = 3000;
 
 // Globale Variablen zum Speichern der Daten
 let coingeckoData = [];
@@ -41,22 +45,28 @@ async function getBinanceData(interval) {
   }
 }
 
-// Cron-Jobs
+// API-Endpunkt zum Abrufen der gespeicherten Daten
+app.get('/api/data', (req, res) => {
+  res.json({
+    coingeckoData,
+    fundingRates
+  });
+});
+
+// Jede Minute CoinGecko-Daten abrufen
 cron.schedule('* * * * *', async () => {
   coingeckoData = await getCoinGeckoData() || [];
   console.log('CoinGecko-Daten aktualisiert:', coingeckoData.length ? coingeckoData[0] : 'Keine Daten');
 });
 
+// Jede Stunde Binance-Daten abrufen
 cron.schedule('0 * * * *', async () => {
   fundingRates.day = await getBinanceData('day');
   fundingRates.week = await getBinanceData('week');
   console.log('Binance-Daten aktualisiert');
 });
 
-// Vercel-Handler
-export default function handler(req, res) {
-  res.json({
-    coingeckoData,
-    fundingRates
-  });
-}
+// Server starten
+app.listen(port, () => {
+  console.log(`Server läuft auf http://localhost:${port}`);
+});
